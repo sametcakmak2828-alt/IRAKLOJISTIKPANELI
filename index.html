@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Irak Lojistik - Şirket Paneli V6.0</title>
+    <!-- Modern Stil Kütüphaneleri -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* --- GELİŞMİŞ YAZDIRMA VE PDF AYARLARI --- */
+        @media print {
+            .no-print, #login-screen, header, section, .search-container, #tirModal, button, .version-tag { display: none !important; }
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            #trackerModal { position: absolute !important; display: block !important; background: white !important; width: 100% !important; left: 0 !important; top: 0 !important; z-index: 9999 !important; }
+            #trackerModal > div { width: 100% !important; max-width: 100% !important; box-shadow: none !important; border: none !important; margin: 0 !important; }
+            #pdfArea { width: 100% !important; border: 1px solid #eee !important; }
+            .bg-indigo-700 { background-color: #4338ca !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .bg-indigo-600 { background-color: #4f46e5 !important; -webkit-print-color-adjust: exact; }
+            .bg-green-600 { background-color: #064e3b !important; -webkit-print-color-adjust: exact; color: white !important; }
+            .bg-blue-100 { background-color: #dbeafe !important; -webkit-print-color-adjust: exact; }
+            .bg-orange-100 { background-color: #ffedd5 !important; -webkit-print-color-adjust: exact; }
+            .bg-purple-100 { background-color: #f3e8ff !important; -webkit-print-color-adjust: exact; }
+            .status-delivered { background-color: #064e3b !important; color: white !important; -webkit-print-color-adjust: exact; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+
+        /* --- TEMA STİLLERİ --- */
+        .status-waiting { background-color: #ffffff; border-left: 6px solid #cbd5e1; }
+        .status-turkey { background-color: #fefce8; border-left: 6px solid #facc15; }
+        .status-onroad { background-color: #eff6ff; border-left: 6px solid #3b82f6; }
+        .status-delivered { background-color: #064e3b !important; border-left: 6px solid #10b981; color: white !important; }
+        .status-delivered td div, .status-delivered td span, .status-delivered td i { color: white !important; opacity: 1 !important; }
+        .field-disabled { opacity: 0.3; pointer-events: none; background-color: #f8fafc; cursor: not-allowed; }
+        .is-important { position: relative; }
+        .is-important::after { content: ''; position: absolute; top: 0; right: 0; border-style: solid; border-width: 0 16px 16px 0; border-color: transparent #ef4444 transparent transparent; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 12px; background: #1e293b; color: white; font-weight: bold; transform: translateY(100px); transition: 0.3s; z-index: 3000; }
+        .toast.show { transform: translateY(0); }
+        .day-label { font-weight: 800; color: #10b981; font-size: 11px; }
+        .status-delivered .day-label { color: #fff; }
+        .version-tag { font-size: 10px; font-weight: 900; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 99px; margin-left: 8px; border: 1px solid #c7d2fe; }
+    </style>
+</head>
+<body class="bg-gray-50 p-2 md:p-8 font-sans text-gray-800 min-h-screen">
+
+    <div id="toast" class="toast">İşlem başarılı!</div>
+
+    <!-- 1. GİRİŞ EKRANI -->
+    <div id="login-screen" class="fixed inset-0 bg-indigo-900 flex items-center justify-center p-4 z-[2000]">
+        <div class="bg-white rounded-[40px] w-full max-w-md p-10 shadow-2xl">
+            <div class="text-center mb-10">
+                <div class="w-24 h-24 bg-indigo-50 rounded-[30px] flex items-center justify-center mx-auto mb-6 border-2 border-indigo-100">
+                    <i class="fas fa-shipping-fast text-indigo-600 text-4xl"></i>
+                </div>
+                <h2 class="text-3xl font-black text-gray-900 uppercase tracking-tighter">Şirket Girişi</h2>
+                <p class="text-gray-400 text-sm font-bold mt-2">Irak Lojistik Yönetim Sistemi</p>
+            </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="text-[10px] font-black text-indigo-400 uppercase ml-2 mb-1 block">Kurumsal E-posta</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"></i>
+                        <input type="email" id="email" placeholder="admin@sirket.com" class="w-full border-2 border-gray-100 p-4 pl-12 rounded-2xl font-bold bg-gray-50 focus:bg-white outline-none focus:border-indigo-500 transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-400 uppercase ml-2 mb-1 block">Güvenlik Şifresi</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"></i>
+                        <input type="password" id="password" placeholder="••••••••" class="w-full border-2 border-gray-100 p-4 pl-12 rounded-2xl font-bold bg-gray-50 focus:bg-white outline-none focus:border-indigo-500 transition-all">
+                    </div>
+                </div>
+                <button onclick="window.login()" id="loginBtn" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase shadow-xl hover:bg-indigo-700 transition-all transform hover:-translate-y-1">Sisteme Giriş Yap</button>
+            </div>
+            <p class="text-center mt-10 text-[9px] text-gray-300 font-black uppercase tracking-[0.2em]">Versiyon 6.0 Bulut Altyapısı</p>
+        </div>
+    </div>
+
+    <!-- 2. ANA PROGRAM EKRANI -->
+    <div id="main-program" class="max-w-full mx-auto main-container" style="display:none;">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 no-print">
+            <div>
+                <h1 class="text-4xl font-black text-indigo-950 uppercase tracking-tighter italic flex items-center">
+                    Irak Lojistik Paneli
+                    <span class="version-tag">V6.0</span>
+                </h1>
+                <p class="text-sm text-gray-400 font-bold mt-1">
+                    <i class="fas fa-cloud-check text-green-500 mr-2"></i> Bulut Tabanlı Canlı Senkronizasyon Aktif
+                </p>
+            </div>
+            
+            <div class="flex flex-wrap justify-center items-center gap-3">
+                <button onclick="window.logout()" class="bg-red-50 text-red-600 border-2 border-red-100 px-6 py-3 rounded-2xl font-black text-xs hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                    <i class="fas fa-power-off mr-2"></i> Çıkış Yap
+                </button>
+                <div class="h-10 w-[2px] bg-gray-200 mx-2"></div>
+                <button onclick="window.exportData()" class="bg-white border-2 border-gray-200 text-gray-500 px-5 py-3 rounded-2xl font-black text-xs hover:bg-gray-100 transition shadow-sm">
+                    <i class="fas fa-database mr-2"></i> YEDEK AL
+                </button>
+                <select id="yearFilter" onchange="window.renderAll()" class="bg-white border-2 border-indigo-600 rounded-2xl px-6 py-3 font-black text-indigo-600 outline-none cursor-pointer shadow-md focus:ring-4 focus:ring-indigo-100 transition-all uppercase">
+                    <option value="TÜMÜ">Tüm Kayıtlar</option>
+                    <option value="P26">2026 (P26)</option>
+                    <option value="P27">2027 (P27)</option>
+                    <option value="P28">2028 (P28)</option>
+                    <option value="P29">2029 (P29)</option>
+                    <option value="P30">2030 (P30)</option>
+                </select>
+                <button onclick="window.openModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-black shadow-2xl transition-all uppercase text-sm tracking-tight flex items-center">
+                    <i class="fas fa-plus-circle mr-3 text-lg"></i> Yeni TIR Ekle
+                </button>
+            </div>
+        </header>
+
+        <!-- İstatistik Kartları -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10 font-bold no-print">
+            <div class="bg-white p-6 rounded-[30px] shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-2 font-black">Toplam Dosya</p>
+                <h3 class="text-3xl font-black text-gray-900" id="statTotal">0</h3>
+            </div>
+            <div class="bg-white p-6 rounded-[30px] shadow-sm border border-blue-50 hover:shadow-md transition-all">
+                <p class="text-[10px] text-blue-400 uppercase tracking-widest mb-2 font-black">Yoldakiler</p>
+                <h3 class="text-3xl font-black text-blue-600" id="statOnRoad">0</h3>
+            </div>
+            <div class="bg-white p-6 rounded-[30px] shadow-sm border border-green-50 hover:shadow-md transition-all">
+                <p class="text-[10px] text-green-400 uppercase tracking-widest mb-2 font-black">Teslim Edilen</p>
+                <h3 class="text-3xl font-black text-green-600" id="statDone">0</h3>
+            </div>
+            <div class="bg-red-50 p-6 rounded-[30px] shadow-sm border border-red-100 hover:shadow-md transition-all">
+                <p class="text-[10px] text-red-400 uppercase tracking-widest mb-2 font-black">Kritik Dosyalar</p>
+                <h3 class="text-3xl font-black text-red-600" id="statImportantCount">0</h3>
+            </div>
+        </section>
+
+        <!-- Arama Çubuğu -->
+        <div class="bg-white p-5 rounded-[25px] shadow-sm border-2 border-indigo-50 flex items-center mb-8 no-print search-container focus-within:border-indigo-200 transition-all">
+            <i class="fas fa-search text-indigo-200 px-4 text-xl"></i>
+            <input type="text" id="searchInput" onkeyup="window.renderAll()" placeholder="Dosya No, Plaka veya Şoför İsmi ile hızlı ara..." class="w-full bg-transparent border-none text-lg font-bold focus:ring-0 outline-none text-gray-700 placeholder:text-gray-300">
+        </div>
+
+        <!-- Ana Liste Tablosu -->
+        <div class="bg-white rounded-[40px] shadow-xl overflow-hidden border border-gray-100">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left min-w-[1250px]">
+                    <thead class="bg-gray-50/50 text-[11px] uppercase font-black text-gray-400 border-b border-gray-100">
+                        <tr>
+                            <th class="px-6 py-5">TIR BİLGİLERİ</th>
+                            <th class="px-6 py-5">YÜK</th>
+                            <th class="px-6 py-5 text-indigo-600 italic">ÇIKIŞ TARİHİ</th>
+                            <th class="px-6 py-5 text-green-600 italic">VARIŞ TARİHİ</th>
+                            <th class="px-6 py-5">SÜRE</th>
+                            <th class="px-6 py-5">GÜNCEL DURUM</th>
+                            <th class="px-6 py-5 text-gray-500 underline">KONUM / GÜMRÜK</th>
+                            <th class="px-6 py-5 text-center no-print">YÖNETİM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tirTableBody" class="divide-y divide-gray-50 font-bold"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kayıt Ekleme/Düzenleme Modalı -->
+    <div id="tirModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-[2100] backdrop-blur-md text-gray-800">
+        <div class="bg-white rounded-[40px] w-full max-w-4xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto transform transition-all">
+            <div class="p-8 border-b flex justify-between bg-gray-50/80 items-center">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100"><i class="fas fa-pen-nib"></i></div>
+                    <h2 class="text-2xl font-black uppercase tracking-tight">Sevkiyat Kayıt Paneli</h2>
+                </div>
+                <button onclick="window.closeModal()" class="w-12 h-12 rounded-full hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-gray-300 transition-all"><i class="fas fa-times text-2xl"></i></button>
+            </div>
+            <form id="tirForm" class="p-10 space-y-8" onsubmit="event.preventDefault(); window.saveTir();">
+                <input type="hidden" id="editId">
+                
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="flex flex-col gap-2"><label class="text-[10px] font-black text-gray-400 uppercase ml-2">Dosya No</label><input type="text" id="formDosyaNo" required class="border-2 border-gray-100 p-4 rounded-2xl font-black bg-gray-50 focus:bg-white outline-none focus:border-indigo-500 transition-all uppercase"></div>
+                    <div class="flex flex-col gap-2"><label class="text-[10px] font-black text-gray-400 uppercase ml-2">Plaka No</label><input type="text" id="formPlaka" required class="border-2 border-gray-100 p-4 rounded-2xl font-black bg-gray-50 focus:bg-white outline-none focus:border-indigo-500 transition-all uppercase"></div>
+                    <div class="flex flex-col gap-2"><label class="text-[10px] font-black text-gray-400 uppercase ml-2">Şoför Adı</label><input type="text" id="formDriverName" class="border-2 border-gray-100 p-4 rounded-2xl font-black bg-gray-50 focus:bg-white outline-none focus:border-indigo-500 transition-all"></div>
+                    <div class="flex flex-col gap-2"><label class="text-[10px] font-black text-gray-400 uppercase ml-2">Çıkış Tarihi</label><input type="date" id="formExitDate" class="border-2 border-gray-100 p-4 rounded-2xl font-black bg-gray-50 focus:bg-white outline-none focus:border-indigo-500 transition-all"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 border-t pt-8">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-indigo-600 uppercase ml-2">Rota Yapısı</label>
+                        <select id="formRouteType" onchange="window.handleRouteChange()" class="border-2 border-indigo-100 p-4 rounded-2xl font-black bg-indigo-50/30 outline-none focus:border-indigo-500 transition-all">
+                            <option value="Sadece İstanbul">Sadece İstanbul</option>
+                            <option value="Sadece Antep">Sadece Antep</option>
+                            <option value="İstanbul + Antep">İstanbul + Antep</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-2"><label class="text-[10px] font-black text-gray-400 uppercase ml-2">Toplam Yük (Çuval)</label><input type="number" id="formBags" class="border-2 border-gray-100 p-4 rounded-2xl font-black bg-gray-50 focus:bg-white outline-none focus:border-indigo-500 transition-all"></div>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-indigo-600 underline italic uppercase ml-2">Operasyonel Adım</label>
+                        <select id="formStatus" onchange="window.handleStatusChange()" class="border-2 border-indigo-600 p-4 rounded-2xl font-black bg-indigo-600 text-white outline-none shadow-lg shadow-indigo-100">
+                            <option value="1">1. Şubeler / Hazırlık</option>
+                            <option value="2">2. Gümrük (Silopi)</option>
+                            <option value="3">3. Gümrük (Antep)</option>
+                            <option value="4">4. Türkiye Sınır Hattı</option>
+                            <option value="5">5. Türkiye'den Çıktı</option>
+                            <option value="6">6. Zaho Gümrük (Salih Mirza)</option>
+                            <option value="7">7. Musul Gümrük</option>
+                            <option value="8">8. Kerkük Gümrük</option>
+                            <option value="9">9. Irak İçi Sevk (Bölgede)</option>
+                            <option value="10">10. Bağdat Teslim Edildi</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-6">
+                    <div id="istBranchGroup" class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-blue-600 uppercase italic ml-2">İstanbul Şubesi Durumu</label>
+                        <select id="formIstStatus" class="border-2 border-blue-100 p-4 rounded-2xl font-black bg-white outline-none focus:border-blue-500">
+                            <option value="Gidilmiyor">Gidilmiyor</option>
+                            <option value="Yükleniyor">Yükleniyor</option>
+                            <option value="İstanbul Çıktı">İstanbul Çıktı</option>
+                        </select>
+                    </div>
+                    <div id="antBranchGroup" class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-orange-600 uppercase italic ml-2">Antep Şubesi Durumu</label>
+                        <select id="formAntStatus" class="border-2 border-orange-100 p-4 rounded-2xl font-black bg-white outline-none focus:border-orange-500">
+                            <option value="Gidilmiyor">Gidilmiyor</option>
+                            <option value="Bekleniyor">Bekleniyor</option>
+                            <option value="Yükleniyor">Yükleniyor</option>
+                            <option value="Antep Çıktı">Antep Çıktı</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 bg-red-50 p-5 rounded-[25px] border-2 border-red-100">
+                    <input type="checkbox" id="formIsImportant" class="w-7 h-7 rounded-lg cursor-pointer accent-red-600">
+                    <span class="font-black text-red-600 text-xs uppercase italic">Bu dosyayı kritik/acil sevkiyat olarak işaretle</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-8">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-gray-400 uppercase italic underline ml-2">TR Gümrük Müşaviri</label>
+                        <select id="formTrCustoms" class="border-2 border-gray-100 p-4 rounded-2xl font-black bg-gray-50 outline-none focus:border-indigo-500 transition-all">
+                            <option value="Seçilmedi">Seçilmedi</option>
+                            <option value="Silopi Gümrük Müş.">Silopi Müşavirlik</option>
+                            <option value="Antep Gümrük Müş.">Antep Müşavirlik</option>
+                        </select>
+                    </div>
+                    <div id="irakGroup" class="field-disabled flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-red-600 uppercase italic underline ml-2">Irak Gümrük Noktası</label>
+                        <select id="formIrakCustoms" class="border-2 border-red-50 p-4 rounded-2xl font-black text-red-700 bg-red-50/20 outline-none focus:border-red-500 transition-all">
+                            <option value="Bekleniyor">Bekleniyor</option>
+                            <option value="Musul Gümrüğü">Musul Gümrüğü</option>
+                            <option value="Kerkük Gümrüğü">Kerkük Gümrüğü</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="irakLocGroup" class="grid grid-cols-1 md:grid-cols-2 gap-6 field-disabled bg-gray-50/50 p-6 rounded-[30px] border-2 border-gray-50">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-gray-500 uppercase ml-2">Irak Mevcut Konum</label>
+                        <select id="formIraqLoc" class="w-full border-2 border-white p-4 rounded-2xl font-black bg-white outline-none shadow-sm focus:border-indigo-500 transition-all">
+                            <option value="Sınır Hattı">Sınır Hattı</option>
+                            <option value="Duhok">Duhok</option>
+                            <option value="Musul">Musul</option>
+                            <option value="Kerkük">Kerkük</option>
+                            <option value="Tikrit">Tikrit</option>
+                            <option value="Samarra">Samarra</option>
+                            <option value="Bağdat">Bağdat</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black text-gray-500 uppercase ml-2">Varış / Teslimat Tarihi</label>
+                        <input type="date" id="formEndDate" class="w-full border-2 border-white p-4 rounded-2xl font-black bg-white outline-none shadow-sm focus:border-indigo-500 transition-all">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Dosya Notları ve Açıklamalar</label>
+                    <textarea id="formNote" rows="3" placeholder="Örn: Araç arızası veya özel talimatlar..." class="border-2 border-gray-100 p-5 rounded-[25px] font-bold bg-gray-50 outline-none focus:border-indigo-500 transition-all"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-4 border-t pt-10">
+                    <button type="button" onclick="window.closeModal()" class="px-10 py-4 text-gray-400 font-black uppercase text-xs hover:text-gray-600 transition-all">Vazgeç</button>
+                    <button id="saveBtn" type="submit" class="bg-indigo-600 text-white px-16 py-5 rounded-[22px] font-black shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase text-xs tracking-widest">Veriyi Buluta İşle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Takip Kartı Modalı (Tracker) -->
+    <div id="trackerModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-[2200] backdrop-blur-xl">
+        <div class="bg-white rounded-[50px] w-full max-w-md overflow-hidden shadow-2xl relative text-gray-800 transform transition-all scale-100">
+            <div id="pdfArea">
+                <div class="p-10 bg-indigo-700 text-white shadow-2xl text-center relative overflow-hidden">
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="text-left">
+                                <h2 class="text-4xl font-black italic uppercase tracking-tighter" id="trackTirNo">-</h2>
+                                <p class="text-indigo-100 text-[11px] font-black uppercase tracking-[0.2em] mt-1" id="trackPlaka">-</p>
+                            </div>
+                            <button onclick="window.closeTracker()" class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all no-print"><i class="fas fa-times fa-lg"></i></button>
+                        </div>
+                        <div class="bg-white/10 rounded-[30px] p-6 mt-4 border-2 border-white/10">
+                            <p class="text-[10px] font-black uppercase text-indigo-200 tracking-widest mb-1">Operasyonel Takvim</p>
+                            <h4 class="text-xl font-black text-white" id="trackDurationDisplay">-</h4>
+                        </div>
+                        <p class="mt-8 text-sm font-black border-t border-white/10 pt-6 uppercase italic flex items-center justify-center" id="trackDriver">-</p>
+                    </div>
+                </div>
+                <div class="p-10 space-y-1 overflow-y-auto max-h-[50vh] bg-white" id="trackStepsContainer"></div>
+                <div id="trackNoteArea" class="px-10 py-6 bg-indigo-50/30 border-t-2 border-indigo-50 hidden text-xs font-bold text-indigo-900 italic">
+                    <span class="block font-black uppercase text-[10px] text-indigo-300 mb-2 underline tracking-widest">Dosya Notları:</span>
+                    <span id="trackNoteText" class="leading-relaxed"></span>
+                </div>
+            </div>
+            <div class="px-10 pb-10 pt-4 bg-white no-print">
+                <button onclick="window.print()" class="w-full bg-gray-900 text-white py-6 rounded-[25px] font-black text-xs uppercase shadow-2xl hover:bg-black transition-all flex items-center justify-center">
+                    <i class="fas fa-file-pdf mr-3 text-lg text-indigo-400"></i> Renkli PDF Kartı Oluştur
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK ve Uygulama Mantığı -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE YAPILANDIRMASI ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDus3X6Eb8vKCe2DZXUOeBylkxIZ5EtQBk",
+            authDomain: "tirtakibi.firebaseapp.com",
+            projectId: "tirtakibi",
+            storageBucket: "tirtakibi.firebasestorage.app",
+            messagingSenderId: "199865601022",
+            appId: "1:199865601022:web:8a76fce696208cd1084eaf",
+            measurementId: "G-YY1CVT8SQ6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = "tirtakibi";
+
+        // --- GLOBAL DEĞİŞKENLER ---
+        window.tirs = [];
+        let unsubscribeData = null;
+
+        const STAGE_NAMES = [
+            "Şubelerde / Hazırlık", "Gümrük (Silopi)", "Gümrük (Antep)", "Türkiye Sınır Hattı",
+            "Türkiye'den Çıktı", "Zaho Gümrük (Salih Mirza)", "Musul Gümrük",
+            "Kerkük Gümrük", "Irak İçi Sevk (Bölgede)", "Bağdat Teslim Edildi"
+        ];
+
+        // --- YARDIMCI FONKSİYONLAR ---
+        const showToast = (msg) => {
+            const t = document.getElementById('toast');
+            if(t) {
+                t.innerText = msg;
+                t.classList.add('show');
+                setTimeout(() => t.classList.remove('show'), 2500);
+            }
+        };
+
+        const formatDateDisplay = (dateStr) => {
+            if (!dateStr) return "-";
+            const parts = dateStr.split('-');
+            if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+            return dateStr;
+        };
+
+        const calculateDuration = (start, end) => {
+            if (!start) return "-";
+            const s = new Date(start);
+            const e = end ? new Date(end) : new Date();
+            const diffTime = Math.abs(e - s);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays + " GÜN";
+        };
+
+        // --- CORE INITIALIZATION ---
+        const init = async () => {
+            onAuthStateChanged(auth, (user) => {
+                const loginScreen = document.getElementById('login-screen');
+                const mainProgram = document.getElementById('main-program');
+
+                if (user) {
+                    loginScreen.style.display = 'none';
+                    mainProgram.style.display = 'block';
+                    startListening();
+                } else {
+                    loginScreen.style.display = 'flex';
+                    mainProgram.style.display = 'none';
+                    window.tirs = [];
+                    if (unsubscribeData) unsubscribeData();
+                }
+            });
+        };
+
+        const startListening = () => {
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'tirs');
+            unsubscribeData = onSnapshot(colRef, (snapshot) => {
+                window.tirs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                window.renderAll();
+            }, (error) => {
+                console.error("Firestore Error:", error);
+                showToast("Veri bağlantısında bir sorun oluştu!");
+            });
+        };
+
+        // --- EXPOSED TO WINDOW ---
+        window.login = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            if(!email || !password) return showToast("E-posta ve şifrenizi girin!");
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Kontrol Ediliyor...';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showToast("Hoş geldiniz!");
+            } catch (error) {
+                showToast("Hata: Yetkisiz giriş veya hatalı şifre!");
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerText = "Sisteme Giriş Yap";
+            }
+        };
+
+        window.logout = async () => {
+            if(!confirm("Çıkış yapmak istediğinize emin misiniz?")) return;
+            try {
+                await signOut(auth);
+                location.reload();
+            } catch (e) { showToast("Çıkış başarısız."); }
+        };
+
+        window.saveTir = async () => {
+            if (!auth.currentUser) return showToast("Yetki hatası!");
+            const g = (id) => document.getElementById(id).value;
+            const editId = g('editId');
+            const id = editId || Date.now().toString();
+            const tirData = {
+                dosyaNo: g('formDosyaNo'),
+                plaka: g('formPlaka'),
+                driverName: g('formDriverName'),
+                exitDate: g('formExitDate'),
+                routeType: g('formRouteType'),
+                istStatus: g('formIstStatus'),
+                antStatus: g('formAntStatus'),
+                status: parseInt(g('formStatus')) || 1,
+                trCustoms: g('formTrCustoms'),
+                irakCustoms: g('formIrakCustoms'),
+                iraqLoc: g('formIraqLoc'),
+                endDate: g('formEndDate'),
+                bags: g('formBags'),
+                note: g('formNote'),
+                isImportant: document.getElementById('formIsImportant').checked,
+                updatedAt: Date.now()
+            };
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tirs', id);
+                await setDoc(docRef, tirData, { merge: true });
+                window.closeModal();
+                showToast("Bulut güncellendi!");
+            } catch (e) { showToast("Kayıt hatası!"); }
+            finally { saveBtn.disabled = false; }
+        };
+
+        window.removeTir = async (id) => {
+            if (!confirm("Bu kaydı silmek istediğinize emin misiniz?")) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tirs', id);
+                await deleteDoc(docRef);
+                showToast("Kayıt silindi.");
+            } catch (e) { showToast("Silme hatası!"); }
+        };
+
+        window.renderAll = () => {
+            const yf = document.getElementById('yearFilter');
+            const body = document.getElementById('tirTableBody');
+            if(!yf || !body) return;
+            const filterValue = yf.value;
+            const search = document.getElementById('searchInput')?.value.toLowerCase() || "";
+            body.innerHTML = "";
+            let filtered = [...window.tirs];
+            if (filterValue !== "TÜMÜ") filtered = filtered.filter(t => String(t.dosyaNo).toUpperCase().startsWith(filterValue.toUpperCase()));
+            if(search) filtered = filtered.filter(t => String(t.dosyaNo).toLowerCase().includes(search) || String(t.plaka).toLowerCase().includes(search) || (t.driverName && t.driverName.toLowerCase().includes(search)));
+            filtered.sort((a, b) => (b.exitDate ? new Date(b.exitDate) : 0) - (a.exitDate ? new Date(a.exitDate) : 0));
+
+            let onRoad = 0, done = 0, important = 0;
+            filtered.forEach(t => {
+                if(t.status === 10) done++; else if(t.status > 1) onRoad++;
+                if(t.isImportant) important++;
+                let colorClass = t.status === 10 ? 'status-delivered' : (t.status >= 5 ? 'status-onroad' : (t.status >= 2 ? 'status-turkey' : 'status-waiting'));
+                const daysElapsed = calculateDuration(t.exitDate, t.endDate);
+                let routeBadge = "";
+                if (t.routeType === "Sadece İstanbul") routeBadge = '<span class="px-2 py-1 rounded-lg bg-blue-100 text-blue-700 text-[9px] font-black border border-blue-200 ml-2 uppercase">İST</span>';
+                else if (t.routeType === "Sadece Antep") routeBadge = '<span class="px-2 py-1 rounded-lg bg-orange-100 text-orange-700 text-[9px] font-black border border-orange-200 ml-2 uppercase">ANT</span>';
+                else if (t.routeType === "İstanbul + Antep") routeBadge = '<span class="px-2 py-1 rounded-lg bg-purple-100 text-purple-700 text-[9px] font-black border border-purple-200 ml-2 text-nowrap uppercase">İST+ANT</span>';
+
+                const tr = document.createElement('tr');
+                tr.className = `${colorClass} ${t.isImportant ? 'is-important' : ''} hover:opacity-95 cursor-pointer border-b border-gray-100 text-[13px]`;
+                tr.onclick = () => window.openTracker(t.id);
+                tr.innerHTML = `
+                    <td class="px-6 py-5"><div class="flex items-center"><div class="font-black uppercase tracking-tight text-indigo-900">${t.dosyaNo}</div>${routeBadge}</div><div class="text-[10px] font-bold opacity-40 uppercase">${t.plaka}</div></td>
+                    <td class="px-6 py-5 font-black text-gray-700">${t.bags || 0} ÇUVAL</td>
+                    <td class="px-6 py-5 font-bold opacity-75">${formatDateDisplay(t.exitDate)}</td>
+                    <td class="px-6 py-5 font-bold opacity-75">${formatDateDisplay(t.endDate)}</td>
+                    <td class="px-6 py-5"><span class="day-label px-2 py-1 bg-gray-50 rounded-lg">${daysElapsed}</span></td>
+                    <td class="px-6 py-5"><div class="font-black underline underline-offset-4 decoration-indigo-200">${STAGE_NAMES[t.status-1] || '-'}</div></td>
+                    <td class="px-6 py-5"><div class="font-black uppercase text-[11px]">${t.iraqLoc || (t.status < 5 ? 'Türkiye' : 'Sınır Hattı')}</div><div class="text-[9px] opacity-40 italic font-bold">Müş: ${t.trCustoms || '-'}</div><div class="text-[9px] opacity-40 italic font-bold">Güm: ${t.irakCustoms || '-'}</div></td>
+                    <td class="px-6 py-5 text-center no-print"><div class="flex justify-center gap-3"><button onclick="event.stopPropagation(); window.openModal('${t.id}')" class="w-9 h-9 flex items-center justify-center bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-indigo-600 shadow-sm"><i class="fas fa-edit text-xs"></i></button><button onclick="event.stopPropagation(); window.removeTir('${t.id}')" class="w-9 h-9 flex items-center justify-center bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-red-500 shadow-sm"><i class="fas fa-trash text-xs"></i></button></div></td>`;
+                body.appendChild(tr);
+            });
+            document.getElementById('statTotal').innerText = filtered.length;
+            document.getElementById('statOnRoad').innerText = onRoad;
+            document.getElementById('statDone').innerText = done;
+            document.getElementById('statImportantCount').innerText = important;
+        };
+
+        window.openModal = (id = null) => {
+            document.getElementById('tirModal').classList.remove('hidden');
+            document.getElementById('tirForm').reset();
+            document.getElementById('editId').value = "";
+            if(id) {
+                const t = window.tirs.find(item => item.id === id);
+                if(t) {
+                    document.getElementById('editId').value = t.id;
+                    document.getElementById('formDosyaNo').value = t.dosyaNo;
+                    document.getElementById('formPlaka').value = t.plaka;
+                    document.getElementById('formDriverName').value = t.driverName || "";
+                    document.getElementById('formExitDate').value = t.exitDate || "";
+                    document.getElementById('formRouteType').value = t.routeType || "Sadece İstanbul";
+                    document.getElementById('formStatus').value = t.status || 1;
+                    document.getElementById('formTrCustoms').value = t.trCustoms || 'Seçilmedi';
+                    document.getElementById('formIrakCustoms').value = t.irakCustoms || 'Bekleniyor';
+                    document.getElementById('formIraqLoc').value = t.iraqLoc || 'Sınır Hattı';
+                    document.getElementById('formEndDate').value = t.endDate || "";
+                    document.getElementById('formBags').value = t.bags || "";
+                    document.getElementById('formNote').value = t.note || "";
+                    document.getElementById('formIsImportant').checked = !!t.isImportant;
+                    document.getElementById('formIstStatus').value = t.istStatus || "Gidilmiyor";
+                    document.getElementById('formAntStatus').value = t.antStatus || "Gidilmiyor";
+                }
+            }
+            window.handleRouteChange(); window.handleStatusChange();
+        };
+
+        window.closeModal = () => document.getElementById('tirModal').classList.add('hidden');
+        window.closeTracker = () => document.getElementById('trackerModal').classList.add('hidden');
+
+        window.handleRouteChange = () => {
+            const route = document.getElementById('formRouteType').value;
+            const istSelect = document.getElementById('formIstStatus');
+            const antSelect = document.getElementById('formAntStatus');
+            document.getElementById('istBranchGroup').classList.toggle('field-disabled', route === "Sadece Antep");
+            document.getElementById('antBranchGroup').classList.toggle('field-disabled', route === "Sadece İstanbul");
+            if(route === "Sadece İstanbul") antSelect.value = "Gidilmiyor";
+            if(route === "Sadece Antep") istSelect.value = "Gidilmiyor";
+        };
+
+        window.handleStatusChange = () => {
+            const s = parseInt(document.getElementById('formStatus').value || 1);
+            document.getElementById('irakGroup').classList.toggle('field-disabled', s < 5);
+            document.getElementById('irakLocGroup').classList.toggle('field-disabled', s < 9);
+        };
+
+        window.openTracker = (id) => {
+            const t = window.tirs.find(item => item.id === id);
+            if(!t) return;
+            document.getElementById('trackerModal').classList.remove('hidden');
+            document.getElementById('trackTirNo').innerText = t.dosyaNo;
+            document.getElementById('trackPlaka').innerText = "PLAKA: " + t.plaka;
+            document.getElementById('trackDriver').innerText = (t.driverName || "Şoför Belirtilmedi") + " | " + (t.bags || 0) + " Çuval";
+            const daysElapsed = calculateDuration(t.exitDate, t.endDate);
+            document.getElementById('trackDurationDisplay').innerText = t.endDate ? `TESLİMAT SÜRESİ: ${daysElapsed}` : `YOLDA GEÇEN SÜRE: ${daysElapsed}`;
+            if(t.note) { document.getElementById('trackNoteArea').classList.remove('hidden'); document.getElementById('trackNoteText').innerText = t.note; }
+            else document.getElementById('trackNoteArea').classList.add('hidden');
+            const container = document.getElementById('trackStepsContainer');
+            container.innerHTML = "";
+            const route = t.routeType || "Sadece İstanbul";
+            let steps = [];
+            if (route !== "Sadece Antep") steps.push({ label: `İst Şubesi: ${t.istStatus || 'Gidilmiyor'}`, stage: 1 });
+            if (route !== "Sadece İstanbul") steps.push({ label: `Ant Şubesi: ${t.antStatus || 'Gidilmiyor'}`, stage: 1 });
+            steps.push({ label: `TR Gümrük: ${t.trCustoms || 'Seçilmedi'}`, stage: 2 }, { label: `Türkiye Sınır Hattı`, stage: 4 }, { label: `Türkiye'den Çıktı`, stage: 5 }, { label: `Zaho Giriş (Salih Mirza)`, stage: 6 }, { label: `IR Gümrük: ${t.irakCustoms || 'Bekleniyor'}`, stage: 7 }, { label: `Mevcut Konum: ${t.iraqLoc || 'Irak'}`, stage: 9 }, { label: `Teslim Edildi`, stage: 10 });
+            steps.forEach((item, index) => {
+                const isDone = t.status >= item.stage;
+                container.innerHTML += `<div class="flex items-start gap-4 mb-4"><div class="flex flex-col items-center"><div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] ${isDone ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-100 text-gray-400 border-gray-200'} font-black border shadow-sm">${index+1}</div>${index !== steps.length-1 ? `<div class="w-0.5 h-6 ${isDone ? 'bg-indigo-600' : 'bg-gray-100'}"></div>` : ''}</div><p class="text-xs font-black uppercase pt-1.5 ${isDone ? 'text-indigo-950' : 'text-gray-300'}">${item.label}</p></div>`;
+            });
+        };
+
+        window.exportData = () => {
+            if(window.tirs.length === 0) return alert("Veri yok.");
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.tirs, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `yedek_${new Date().toLocaleDateString('tr-TR')}.json`);
+            dl.click();
+        };
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
