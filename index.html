@@ -112,7 +112,6 @@
             </div>
         </header>
 
-        <!-- İstatistik Kartları -->
         <section class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10 font-bold no-print">
             <div class="bg-white p-6 rounded-[30px] shadow-sm border border-gray-100 hover:shadow-md transition-all">
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-2 font-black">Toplam Dosya</p>
@@ -132,13 +131,11 @@
             </div>
         </section>
 
-        <!-- Arama Çubuğu -->
         <div class="bg-white p-5 rounded-[25px] shadow-sm border-2 border-indigo-50 flex items-center mb-8 no-print search-container focus-within:border-indigo-200 transition-all">
             <i class="fas fa-search text-indigo-200 px-4 text-xl"></i>
             <input type="text" id="searchInput" onkeyup="window.renderAll()" placeholder="Dosya No, Plaka veya Şoför İsmi ile hızlı ara..." class="w-full bg-transparent border-none text-lg font-bold focus:ring-0 outline-none text-gray-700 placeholder:text-gray-300">
         </div>
 
-        <!-- Ana Liste Tablosu -->
         <div class="bg-white rounded-[40px] shadow-xl overflow-hidden border border-gray-100">
             <div class="overflow-x-auto">
                 <table class="w-full text-left min-w-[1250px]">
@@ -327,7 +324,7 @@
         const firebaseConfig = {
             apiKey: "AIzaSyDus3X6Eb8vKCe2DZXUOeBylkxIZ5EtQBk",
             authDomain: "tirtakibi.firebaseapp.com",
-            projectId: "tirtakibi",
+            projectId: "tirtakibi-29d94",
             storageBucket: "tirtakibi.firebasestorage.app",
             messagingSenderId: "199865601022",
             appId: "1:199865601022:web:8a76fce696208cd1084eaf",
@@ -337,7 +334,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "tirtakibi";
+        const appId = "tirtakibi-29d94"; // Environment appId fallback
 
         // --- GLOBAL DEĞİŞKENLER ---
         window.tirs = [];
@@ -355,7 +352,7 @@
             if(t) {
                 t.innerText = msg;
                 t.classList.add('show');
-                setTimeout(() => t.classList.remove('show'), 2500);
+                setTimeout(() => t.classList.remove('show'), 3000);
             }
         };
 
@@ -375,12 +372,22 @@
             return diffDays + " GÜN";
         };
 
-        // --- CORE INITIALIZATION ---
-        const init = async () => {
+        // --- AUTH & LISTENING ---
+        const startListening = () => {
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'tirs');
+            unsubscribeData = onSnapshot(colRef, (snapshot) => {
+                window.tirs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                window.renderAll();
+            }, (error) => {
+                console.error("Firestore Error:", error);
+                showToast("Veri bağlantı hatası!");
+            });
+        };
+
+        const init = () => {
             onAuthStateChanged(auth, (user) => {
                 const loginScreen = document.getElementById('login-screen');
                 const mainProgram = document.getElementById('main-program');
-
                 if (user) {
                     loginScreen.style.display = 'none';
                     mainProgram.style.display = 'block';
@@ -394,18 +401,7 @@
             });
         };
 
-        const startListening = () => {
-            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'tirs');
-            unsubscribeData = onSnapshot(colRef, (snapshot) => {
-                window.tirs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                window.renderAll();
-            }, (error) => {
-                console.error("Firestore Error:", error);
-                showToast("Veri bağlantısında bir sorun oluştu!");
-            });
-        };
-
-        // --- EXPOSED TO WINDOW ---
+        // --- WINDOW EXPOSED FUNCTIONS ---
         window.login = async () => {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -417,7 +413,7 @@
                 await signInWithEmailAndPassword(auth, email, password);
                 showToast("Hoş geldiniz!");
             } catch (error) {
-                showToast("Hata: Yetkisiz giriş veya hatalı şifre!");
+                showToast("Hata: Giriş başarısız!");
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.innerText = "Sisteme Giriş Yap";
@@ -426,17 +422,17 @@
 
         window.logout = async () => {
             if(!confirm("Çıkış yapmak istediğinize emin misiniz?")) return;
-            try {
-                await signOut(auth);
-                location.reload();
-            } catch (e) { showToast("Çıkış başarısız."); }
+            try { await signOut(auth); location.reload(); } catch (e) { showToast("Hata oluştu."); }
         };
 
         window.saveTir = async () => {
-            if (!auth.currentUser) return showToast("Yetki hatası!");
+            if (!auth.currentUser) return showToast("Giriş yapmalısınız!");
+            
+            const saveBtn = document.getElementById('saveBtn');
             const g = (id) => document.getElementById(id).value;
             const editId = g('editId');
             const id = editId || Date.now().toString();
+
             const tirData = {
                 dosyaNo: g('formDosyaNo'),
                 plaka: g('formPlaka'),
@@ -455,15 +451,22 @@
                 isImportant: document.getElementById('formIsImportant').checked,
                 updatedAt: Date.now()
             };
-            const saveBtn = document.getElementById('saveBtn');
+
             saveBtn.disabled = true;
+            saveBtn.innerText = "Bekleyin...";
+
             try {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tirs', id);
                 await setDoc(docRef, tirData, { merge: true });
                 window.closeModal();
-                showToast("Bulut güncellendi!");
-            } catch (e) { showToast("Kayıt hatası!"); }
-            finally { saveBtn.disabled = false; }
+                showToast("Kayıt buluta işlendi!");
+            } catch (e) {
+                console.error("Save Error:", e);
+                showToast("Kayıt Hatası: " + e.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerText = "Veriyi Buluta İşle";
+            }
         };
 
         window.removeTir = async (id) => {
@@ -472,7 +475,7 @@
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tirs', id);
                 await deleteDoc(docRef);
                 showToast("Kayıt silindi.");
-            } catch (e) { showToast("Silme hatası!"); }
+            } catch (e) { showToast("Hata oluştu."); }
         };
 
         window.renderAll = () => {
@@ -585,7 +588,7 @@
             steps.push({ label: `TR Gümrük: ${t.trCustoms || 'Seçilmedi'}`, stage: 2 }, { label: `Türkiye Sınır Hattı`, stage: 4 }, { label: `Türkiye'den Çıktı`, stage: 5 }, { label: `Zaho Giriş (Salih Mirza)`, stage: 6 }, { label: `IR Gümrük: ${t.irakCustoms || 'Bekleniyor'}`, stage: 7 }, { label: `Mevcut Konum: ${t.iraqLoc || 'Irak'}`, stage: 9 }, { label: `Teslim Edildi`, stage: 10 });
             steps.forEach((item, index) => {
                 const isDone = t.status >= item.stage;
-                container.innerHTML += `<div class="flex items-start gap-4 mb-4"><div class="flex flex-col items-center"><div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] ${isDone ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-100 text-gray-400 border-gray-200'} font-black border shadow-sm">${index+1}</div>${index !== steps.length-1 ? `<div class="w-0.5 h-6 ${isDone ? 'bg-indigo-600' : 'bg-gray-100'}"></div>` : ''}</div><p class="text-xs font-black uppercase pt-1.5 ${isDone ? 'text-indigo-950' : 'text-gray-300'}">${item.label}</p></div>`;
+                container.innerHTML += `<div class="flex items-start gap-4 mb-4"><div class="flex flex-col items-center"><div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] ${isDone ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-100 text-gray-400 border-gray-200'} font-black border shadow-sm">${index+1}</div>${index !== steps.length-1 ? `<div class="w-0.5 h-6 ${isDone ? 'bg-indigo-600' : 'bg-gray-200'}"></div>` : ''}</div><p class="text-xs font-black uppercase pt-1.5 ${isDone ? 'text-indigo-950' : 'text-gray-300'}">${item.label}</p></div>`;
             });
         };
 
@@ -598,7 +601,6 @@
             dl.click();
         };
 
-        // Initialize on load
         init();
     </script>
 </body>
